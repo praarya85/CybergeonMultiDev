@@ -24,7 +24,7 @@ conn = init_db()
 # 2. AI CONFIGURATION (Gemini 2.5 Flash)
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-pro') # Using Pro for higher reasoning
+    model = genai.GenerativeModel('gemini-2.5-pro') # Using Pro for higher reasoning
 except Exception:
     st.error("API Key missing! Please set 'GEMINI_API_KEY' in Streamlit Secrets.")
     st.stop()
