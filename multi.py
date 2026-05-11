@@ -5,7 +5,7 @@ from google import genai
 from google.genai import types
 
 # --- 1. CONFIGURATION ---
-API_KEY = "AIzaSyA8vWlatyC8U-HVlhDeALMRDvspLrcrslI"
+API_KEY = ""
 client = genai.(api_key=API_KEY)
 
 # Using the latest 2026 production models
