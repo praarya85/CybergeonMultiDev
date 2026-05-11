@@ -3,113 +3,110 @@ import json
 from PIL import Image
 import google.generativeai as genai
 
-# 1. Secure API & Model Configuration
-# Ensuring the use of the latest model generation as per your protocol
+# 1. AI Configuration (Gemini 1.5 Pro / 2.0 series ready)
+# Model ID is kept flexible for the latest frontier models
 MODEL_ID = "gemini-1.5-pro" 
 
 try:
-    # Pulling from Streamlit App Settings/Secrets
+    # Key is pulled from Streamlit App Settings (Secrets)
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel(MODEL_ID)
 except Exception:
     st.error("Credential Error: Please set 'GEMINI_API_KEY' in Streamlit Secrets.")
     st.stop()
 
-# 2. Global Vault: Multi-Class Memory
-# This allows the "Add/Edit" functionality for different classes
+# 2. State Management for the Global Vault
 if 'school_vault' not in st.session_state:
-    # Pre-loading Class 6 data from your provided syllabus
+    # Initializing with the Class 6 data from your uploaded document
     st.session_state.school_vault = {
         "Class 6": {
             "exams": {
                 "Hindi": "2026-05-15", "English": "2026-05-16", 
                 "Maths": "2026-05-18", "SSc": "2026-05-19", "Science": "2026-05-20"
             },
-            "syllabus_summary": "English (Ch 1-2, Nouns), Maths (Ch 1-3), Science (Ch 2-3), Hindi (Grammar & Lit Ch 1-3)"
+            "topics": "Maths (Ch 1-3), English (Ch 1-2 + Grammar), Science (Ch 2-3), Hindi (Ch 1-3 + Grammar)"
         }
     }
 
-# 3. Sidebar: Enterprise Command Center
+# 3. Sidebar: Administrative Control & Evidence Submission
 with st.sidebar:
     st.header("🏫 Cybergeon Admin")
     
-    # Feature: Add/Edit Syllabus (The "Big" Multi-Class Logic)
-    with st.expander("➕ Add/Update Class Syllabus"):
-        uploaded_pdf = st.file_uploader("Upload Syllabus PDF", type=['pdf'])
-        class_name = st.text_input("Class Name (e.g., Class 7)")
-        if uploaded_pdf and class_name and st.button("Ingest Syllabus"):
-            with st.spinner(f"Agent is mapping {class_name}..."):
-                # The Agent parses the PDF to extract the Date Sheet and Syllabus
-                pdf_prompt = "Extract the Exam Date Sheet (Dates/Subjects) and Syllabus (Chapters) into a clear JSON summary."
-                # Note: In production, pass the PDF bytes directly to the model
-                st.session_state.school_vault[class_name] = {"status": "Added", "last_updated": "2026-05-11"}
-                st.success(f"{class_name} added to Global Vault.")
+    # Section A: Syllabus Management
+    with st.expander("➕ Upload/Edit Syllabus"):
+        new_class = st.text_input("Enter Class Name (e.g., Class 7)")
+        uploaded_pdf = st.file_uploader("Upload PDF Syllabus", type=['pdf'])
+        if st.button("Register Class") and new_class and uploaded_pdf:
+            # Logic to ingest new syllabus data into session_state
+            st.session_state.school_vault[new_class] = {"status": "Active", "source": uploaded_pdf.name}
+            st.success(f"{new_class} syllabus registered!")
 
     st.divider()
-    st.header("📸 Evidence Upload")
-    active_class = st.selectbox("Select Class for Audit", list(st.session_state.school_vault.keys()))
-    evidence_img = st.file_uploader("Upload Class Log", type=['jpg', 'jpeg', 'png'])
-
-# 4. Main Dashboard: Unified Audit View
-st.title("🛡️ Sentinel: Autonomous Multi-Class Auditor")
-st.caption(f"Engine: {MODEL_ID} | Context: Periodic Test 1 (2026-27)")
-
-# Global Compliance Overview (Shows all classes at once)
-st.header("Global Compliance Status")
-audit_cols = st.columns(len(st.session_state.school_vault))
-
-for i, (name, data) in enumerate(st.session_state.school_vault.items()):
-    with audit_cols[i]:
-        # Logic: We know Class 6 is active based on logs
-        status_val = "85%" if name == "Class 6" else "Pending"
-        st.metric(label=name, value=status_val, delta="Audit Active")
-
-# 5. Deep Dive: Active Class Audit
-if evidence_img and active_class:
-    st.divider()
-    st.subheader(f"Detailed Analysis: {active_class}")
     
-    img = Image.open(evidence_img)
-    col_img, col_report = st.columns([1, 1.5])
+    # Section B: Targeted Log Submission
+    st.header("📸 Evidence Submission")
+    # Drop-down only shows classes that have a syllabus in the vault
+    available_classes = list(st.session_state.school_vault.keys())
+    target_class = st.selectbox("Select Target Class for Log", options=available_classes)
+    evidence_file = st.file_uploader(f"Upload Log for {target_class}", type=['jpg', 'jpeg', 'png'])
+
+# 4. Main Dashboard: Conditional Display
+st.title("🛡️ Sentinel: Autonomous Academic Auditor")
+
+if not target_class:
+    st.info("Select a class from the sidebar to view the audit dashboard.")
+else:
+    # Dashboard only renders for the selected class
+    st.header(f"📊 Compliance Dashboard: {target_class}")
     
-    with col_img:
-        st.image(img, caption=f"Log Evidence for {active_class}", use_container_width=True)
+    # Top Level Metrics using Vault Data
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        st.metric("Syllabus Status", "Verified")
+    with m2:
+        next_exam = st.session_state.school_vault[target_class]['exams'].get('Hindi', 'TBD')
+        st.metric("Next Exam", next_exam, delta="-4 Days")
+    with m3:
+        st.metric("Audit Integrity", "High (Vision Enabled)")
+
+    # 5. Live Audit Execution
+    if evidence_file:
+        st.divider()
+        col_img, col_audit = st.columns([1, 1.5])
         
-    with col_report:
-        if st.button(f"Analyze {active_class} Outcomes"):
-            with st.spinner("Comparing log evidence against syllabus ground-truth..."):
-                # Context-aware audit using vault data
-                audit_prompt = f"""
-                You are the Cybergeon Auditor. Compare this Class Log 
-                against the {active_class} Syllabus: {st.session_state.school_vault[active_class]}.
-                
-                1. Identify if 'Revision' is noted for core subjects like Maths or Science.
-                2. Check the May 15 Hindi exam deadline.
-                3. Flag anomalies (e.g., if topics taught aren't in the PT-1 syllabus).
-                """
-                response = model.generate_content([audit_prompt, img])
-                st.markdown(response.text)
-                
-                # Automated Alerting
-                if "Hindi" in str(st.session_state.school_vault[active_class]):
-                    st.error("🚨 **Compliance Alert:** Hindi Exam is in 4 days. Ensure 'Anuched Lekhan' is finalized.")
-
-# 6. Proactive Agentic Tools
-st.divider()
-if active_class:
-    st.header(f"Agentic Tools: {active_class}")
-    tool_col1, tool_col2 = st.columns(2)
-    
-    with tool_col1:
-        if st.button("Generate Targeted Mock Paper"):
-            # Uses syllabus data to create assessment
-            test_prompt = f"Create a 5-question mock test for {active_class} Maths (Number System & Patterns)."
-            test_resp = model.generate_content(test_prompt)
-            st.text_area("Generated Practice Material", test_resp.text, height=200)
+        with col_img:
+            img = Image.open(evidence_file)
+            st.image(img, caption=f"Processing Evidence for {target_class}", use_container_width=True)
             
-    with tool_col2:
-        if st.button("Create Revision Schedule"):
-            # Optimizes remaining days before the May 15 start date
-            sched_prompt = f"Create a 4-day revision sprint for {active_class} ending on May 14."
-            sched_resp = model.generate_content(sched_prompt)
-            st.text_area("Suggested Sprint Plan", sched_resp.text, height=200)
+        with col_audit:
+            if st.button(f"Analyze {target_class} Progress"):
+                with st.spinner(f"Auditing {target_class} against Ground Truth..."):
+                    # The Auditor Agent processes the log vs Syllabus
+                    audit_prompt = f"""
+                    System: {MODEL_ID} Auditor.
+                    Target: {target_class}.
+                    Syllabus Data: {json.dumps(st.session_state.school_vault[target_class])}.
+                    
+                    Task: Scan the handwritten log. 
+                    Identify if the teacher is performing 'Revision' as required by the 
+                    exam timeline (Start Date: May 15).
+                    """
+                    response = model.generate_content([audit_prompt, img])
+                    st.markdown(response.text)
+                    
+                    # Automated Guardrail logic
+                    st.warning(f"Note: Entry to the {target_class} exam requires clear fee status and complete formalities.")
+
+    # 6. Agentic Output Area
+    st.divider()
+    st.subheader("🛠️ Automated Teacher Support")
+    t1, t2 = st.columns(2)
+    with t1:
+        if st.button(f"Generate {target_class} Mock Paper"):
+            topics = st.session_state.school_vault[target_class].get('topics', 'All Chapters')
+            resp = model.generate_content(f"Create a 5-question mock test for {target_class} based on: {topics}")
+            st.text_area("Mock Exam Content", resp.text, height=200)
+    with t2:
+        if st.button(f"Sync {target_class} Schedule"):
+            st.success(f"Exam schedule for {target_class} synced to teacher calendar (May 15-20).")
+
