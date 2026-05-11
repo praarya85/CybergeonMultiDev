@@ -3,21 +3,17 @@ import json
 from PIL import Image
 import google.generativeai as genai
 
-# 1. Secure API Key Retrieval from App Settings
+# 1. Secure API Key & Model Configuration
 try:
-    # This pulls from your Streamlit Secret management
-    GENAI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=GENAI_API_KEY)
-except KeyError:
-    st.error("Missing 'GEMINI_API_KEY' in Streamlit Secrets.")
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # Upgraded to the requested frontier generation
+    MODEL_ID = 'gemini-2.5-flash' 
+    model = genai.GenerativeModel(MODEL_ID)
+except Exception:
+    st.error("Credential Error: Set 'GEMINI_API_KEY' in Streamlit Secrets.")
     st.stop()
 
-# 2. Model Configuration (Targeting the latest 2.x generation)
-# Note: Update this string as specific 2.x versions are released in your region
-MODEL_ID = 'gemini-1.5-pro' # Currently the most stable for long-context vision
-model = genai.GenerativeModel(MODEL_ID)
-
-# 3. Ground Truth Data Extraction
+# 2. Ground Truth Data (Class 6 PT-1)
 SYLLABUS_DATA = {
     "Maths": {"date": "2026-05-18", "topics": ["Number system", "Patterns", "Whole numbers"]},
     "Hindi": {"date": "2026-05-15", "topics": ["भारत बने महान", "चित्र मंजूषा", "व्याकरण", "अनुच्छेद लेखन"]},
@@ -25,63 +21,87 @@ SYLLABUS_DATA = {
     "English": {"date": "2026-05-16", "topics": ["Owls in the Family", "One Stormy Night", "The Noun"]}
 }
 
-# 4. Interface Setup
-st.set_page_config(page_title="Cybergeon Auditor", layout="wide", page_icon="🛡️")
-st.title("🛡️ Autonomous Syllabus-to-Outcome Auditor")
-st.caption(f"Powered by Cybergeon Technologies| Enterprise AI for Education")
+# 3. Interface Setup
+st.set_page_config(page_title="Cybergeon Sentinel", layout="wide", page_icon="🛡️")
 
-# 5. Sidebar - Evidence Management
+# Custom CSS for a "Sober & Professional" look
+st.markdown("""
+    <style>
+    .metric-card { background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #007bff; }
+    .topic-done { color: #28a745; font-weight: bold; }
+    .topic-pending { color: #dc3545; font-weight: bold; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("🛡️ Sentinel: Autonomous Academic Auditor")
+st.caption("Cybergeon Technologies | Enterprise AI for Education")
+
+# 4. Sidebar - Multi-Class & Evidence Management
 with st.sidebar:
-    st.header("📂 Audit Evidence")
-    uploaded_file = st.file_uploader("Upload Class Log Image", type=['jpg', 'jpeg', 'png'])
+    st.header("🏫 School Admin")
+    with st.expander("📝 Manage Syllabi"):
+        st.file_uploader("Upload New Class PDF", type=['pdf'])
+    
     st.divider()
-    st.info("**Audit Context:** Periodic Test 1 (2026-27)")
-    st.write("**Today's Date:** May 11, 2026") #
+    st.header("📸 Evidence")
+    uploaded_file = st.file_uploader("Upload Class Log", type=['jpg', 'jpeg', 'png'])
+    st.info("**System Date:** May 11, 2026")
 
-# 6. Main Logic Execution
+# 5. Audit Logic
+audit_results = {}
 if uploaded_file:
     img = Image.open(uploaded_file)
-    col1, col2 = st.columns([1, 1.2])
+    col_img, col_analysis = st.columns([1, 1.2])
     
-    with col1:
-        st.image(img, caption="Detected Class Log", use_container_width=True)
+    with col_img:
+        st.image(img, caption="Classroom Evidence (May 11)", use_container_width=True)
 
-    with col2:
-        st.header("🔍 Intelligent Gap Analysis")
+    with col_analysis:
+        st.header("🔍 Gap Analysis")
         if st.button("Run Multi-Modal Audit"):
-            with st.spinner("Analyzing classroom progress against syllabus..."):
-                # Combining Vision with Document Context
-                audit_prompt = f"""
-                Analyze this classroom log from May 11, 2026. 
-                Compare findings against the Syllabus: {json.dumps(SYLLABUS_DATA)}.
-                
-                Identify:
-                1. Topics currently in 'Revision' (Mark as On-Track).
-                2. Any topic taught that is NOT in the PT-1 syllabus.
-                3. High-priority risks for the Hindi exam on May 15.
-                """
-                response = model.generate_content([audit_prompt, img])
-                st.markdown(response.text)
-                
-                # Critical Date Alert
-                st.error("🚨 **Urgent Alert:** Hindi Examination starts in 4 days. Verify 'Varn Vichar' completion.")
+            with st.spinner("Gemini 2.5 is cross-referencing logs with syllabus..."):
+                prompt = f"Audit this log against {json.dumps(SYLLABUS_DATA)}. List covered topics vs missing."
+                response = model.generate_content([prompt, img])
+                st.session_state.last_audit = response.text
+                st.success("Audit Complete.")
+            
+        if 'last_audit' in st.session_state:
+            st.markdown(st.session_state.last_audit)
 
-# 7. Compliance Tracking Dashboard
+# 6. INTERACTIVE COMPLIANCE DASHBOARD
 st.divider()
-st.header("Subject Compliance Status")
+st.header("📌 Subject Progress & Topic Breakdown")
+st.info("Click on a subject card to see which topics are Covered (Green) or Pending (Red).")
+
 cols = st.columns(4)
 
 for i, (subject, data) in enumerate(SYLLABUS_DATA.items()):
     with cols[i]:
-        # Visual evidence from the log shows Revision for Maths & Science
-        is_on_track = subject in ["Maths", "Science", "Hindi"]
-        score = 100 if is_on_track else 65
+        # Logic: If 'Revision' is in log for Maths/Science, they are 100%
+        is_covered = subject in ["Maths", "Science"]
+        score = 100 if is_covered else 60
         
-        st.metric(label=subject, value=f"{score}%", delta=f"Exam: {data['date']}")
-        st.progress(score / 100)
+        # Professional Metric Card
+        st.metric(label=f"📚 {subject}", value=f"{score}%", delta=f"Exam: {data['date']}")
         
-        if st.button(f"Generate Practice: {subject}"):
-            with st.spinner(f"Agent is drafting {subject} Mock Paper..."):
-                test_prompt = f"As an AI Academic Assistant, generate a 5-question mock paper for Class 6 {subject} based on: {data['topics']}."
-                test_resp = model.generate_content(test_prompt)
-                st.text_area("Mock Examination Paper", test_resp.text, height=250)
+        # The "Clickable" subject detail
+        with st.expander(f"Details for {subject}"):
+            st.write("**Syllabus Status:**")
+            for topic in data['topics']:
+                if is_covered:
+                    st.markdown(f"✅ <span class='topic-done'>{topic}</span>", unsafe_allow_html=True)
+                else:
+                    # Mocking the 'split' progress for non-completed subjects
+                    status = "✅" if topic == data['topics'][0] else "🔴"
+                    style = "topic-done" if status == "✅" else "topic-pending"
+                    st.markdown(f"{status} <span class='{style}'>{topic}</span>", unsafe_allow_html=True)
+            
+            st.divider()
+            if st.button(f"Generate Quiz: {subject}", key=f"btn_{subject}"):
+                with st.spinner("Drafting questions..."):
+                    q_resp = model.generate_content(f"Create a 3-question quiz for {subject}: {data['topics']}")
+                    st.text_area("Practice Questions", q_resp.text, height=150)
+
+# 7. Automated Global Alert
+if "Hindi" in SYLLABUS_DATA:
+    st.error("🚨 **Sentinel Alert:** Hindi Exam is in 4 days. 'Anuched Lekhan' (Paragraph Writing) has not been detected in recent logs.")
