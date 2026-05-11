@@ -79,7 +79,7 @@ with st.sidebar:
 
 # 5. DASHBOARD MAIN VIEW
 st.title("🛡️ Sentinel: Autonomous Multi-Class Auditor")
-st.caption(f"Powered by Gemini 2.0 Flash | Digital Architecture for Gurukul Academy")
+st.caption(f"Powered by Cybergeon Technologies| Digital Architecture for Gurukul Academy")
 
 if target_class:
     # Key Performance Indicators
