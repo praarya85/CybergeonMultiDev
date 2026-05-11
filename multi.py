@@ -28,7 +28,7 @@ SYLLABUS_DATA = {
 # 4. Interface Setup
 st.set_page_config(page_title="Cybergeon Auditor", layout="wide", page_icon="🛡️")
 st.title("🛡️ Autonomous Syllabus-to-Outcome Auditor")
-st.caption(f"Powered by {MODEL_ID} | Enterprise AI for Education")
+st.caption(f"Powered by Cybergeon Technologies| Enterprise AI for Education")
 
 # 5. Sidebar - Evidence Management
 with st.sidebar:
